@@ -29,6 +29,12 @@ jobs:
       - name: Install gems
         run: bundle install
 
+      - name: Clear Gem Cache
+        run: gem cleanup
+
+      - name: Reinstall Fastlane
+        run: gem install fastlane
+
       - name: Run Tests (No Cache)
         run: bundle exec fastlane unit_test
 
