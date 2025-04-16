@@ -1,0 +1,45 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.9.1
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Set up Ruby 3.0
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.0
+
+      - name: Install Bundler
+        run: gem install bundler
+
+      - name: Install gems
+        run: bundle install
+
+      - name: Clear Gem Cache
+        run: gem cleanup
+
+      - name: Reinstall Fastlane
+        run: gem install fastlane
+
+      - name: Run Tests (No Cache)
+        run: bundle exec fastlane unit_test
+
+      - name: Run Tests (iOS)
+        run: |
+          xcodebuild -scheme fastlaneTest \
+          -destination 'platform=iOS Simulator,name=Any iOS Simulator' \
+          -derivedDataPath Build/
