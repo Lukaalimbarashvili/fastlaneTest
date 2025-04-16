@@ -8,34 +8,48 @@ on:
 
 jobs:
   test:
-    runs-on: macos-latest  # This will use the latest macOS runner
+    runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v2  # Check out your code
+      - uses: actions/checkout@v2
 
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.9.1
         with:
           access_token: ${{ github.token }}
 
-      # Set up the latest version of Xcode
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: 'latest'  # Automatically picks the latest stable Xcode version
+          xcode-version: latest-stable
 
-      # Install Ruby and set the Ruby version to 3.x (required for Bundler 2.5.4)
       - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.0'  # Use Ruby 3.0 or higher (adjust as needed)
 
-      # Install Bundler
       - name: Install Bundler
-        run: gem install bundler -v 2.5.4  # Install a compatible Bundler version
+        run: gem install bundler
 
-      # Install required gems specified in the Gemfile
       - name: Install gems
         run: bundle install
 
-      # Run Tests (No Cache)
+      - name: Swift Packages Cache
+        uses: actions/cache@v2
+        id: cache
+        with:
+          path: |
+            Build/SourcePackages
+            Build/Build/Products
+          key: ${{ runner.os }}-deps-v1-${{ hashFiles('BILDsolid.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-deps-v1-
+
       - name: Run Tests (No Cache)
+        if: steps.setup.outputs.cache-hit != 'true'
         run: bundle exec fastlane unit_test
+
+      - name: Run Tests (Cache)
+        if: steps.setup.outputs.cache-hit == 'true'
+        run: bundle exec fastlane unit_test skip_package_dependencies_resolution:true
+
+      - name: Run Tests (iOS)
+        run: |
+          xcodebuild -scheme fastlaneTest \
+          -destination 'platform=iOS Simulator,name=Any iOS Simulator' \
+          -derivedDataPath Build/
