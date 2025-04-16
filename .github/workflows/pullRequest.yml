@@ -8,26 +8,51 @@ on:
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: macos-latest  # This will use the latest macOS runner
+
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2  # Check out your code
 
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.9.1
         with:
           access_token: ${{ github.token }}
 
-      # Install Ruby 3.x (required for Bundler 2.5.4)
+      # Set up the latest version of Xcode
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest'  # Automatically picks the latest stable Xcode version
+
+      # Install Ruby and set the Ruby version to 3.x (required for Bundler 2.5.4)
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.0'  # Specify Ruby 3.x or a specific version like '3.0.0'
+          ruby-version: '3.0'  # Use Ruby 3.0 or higher (adjust as needed)
 
-      # Install Bundler and gems
+      # Install Bundler
       - name: Install Bundler
-        run: gem install bundler -v 2.5.4
+        run: gem install bundler -v 2.5.4  # Install a compatible Bundler version
 
+      # Install required gems specified in the Gemfile
       - name: Install gems
         run: bundle install
 
-      - name: Run Tests
+      # Swift Packages Cache (optional, only if you're using SwiftPM)
+      - name: Swift Packages Cache
+        uses: actions/cache@v2
+        id: cache
+        with:
+          path: |
+            Build/SourcePackages
+            Build/Build/Products
+          key: ${{ runner.os }}-deps-v1-${{ hashFiles('BILDsolid.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-deps-v1-
+
+      # Run Tests (No Cache)
+      - name: Run Tests (No Cache)
+        if: steps.cache.outputs.cache-hit != 'true'
         run: bundle exec fastlane unit_test
+
+      # Run Tests (With Cache)
+      - name: Run Tests (Cache)
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: bundle exec fastlane unit_test skip_package_dependencies_resolution:true
